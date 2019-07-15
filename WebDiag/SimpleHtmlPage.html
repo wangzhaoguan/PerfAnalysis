@@ -1,0 +1,194 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <link href="lib/ligerUI/skins/Aqua/css/ligerui-all.css" rel="stylesheet" type="text/css" />
+
+    <script src="lib/jquery/jquery-1.9.0.min.js" type="text/javascript"></script>
+    <!--<script src="lib/ligerUI/js/core/base.js" type="text/javascript"></script>-->
+    <!--<script src="lib/ligerUI/js/plugins/ligerGrid.js" type="text/javascript"></script>-->
+    <script src="lib/ligerUI/js/ligerui.min.js" type="text/javascript"></script>
+
+    <script type="text/javascript">
+        var grid;
+        $(function ()
+        {
+            var d1 = $("#dtEnd").ligerDateEditor({ showTime: true, format: "yyyy-MM-dd hh:mm", newline: false });
+            d1.setValue(new Date(new Date().getTime() + 10 * 60 * 1000));
+
+            var beforeTime;
+            window['g'] =
+                grid = $("#maingrid").ligerGrid({
+                columns: [
+                    { display: '请求开始', name: 'ClientBegin', width: 160, align: 'left', type: 'date' },
+                    { display: '应用开始', name: 'AppBegin', width: 160, align: 'left', type: 'date' },
+                    { display: 'DB开始', name: 'DbBegin', width: 160, align: 'left', type: 'date' },
+                    { display: 'DB结束', name: 'DbEnd', width: 160, align: 'left', type: 'date' },
+                    { display: '应用结束', name: 'AppEnd', width: 160, align: 'left', type: 'date' },
+                    { display: '请求结束', name: 'ClientEnd', width: 160, align: 'left', type: 'date' },
+                    { display: 'DB（毫秒）', name: 'DbDuration', width: 90, type: "int", align: 'right' },
+                    { display: 'APP（毫秒）', name: 'AppDuration', width: 90, type: "int", align: 'right' },
+                    { display: '总计（毫秒）', name: 'ClientDuration', width: 90, type: "int", align: 'right' }
+                ],
+                width: '100%',
+                height: '99%',
+                dateFormat: 'yyyy-MM-dd hh:mm:ss.S',
+                dataAction: 'local',
+                usePager: true,       //服务器分页
+                pageSize: 10000,
+                pageSizeOptions: [10000],
+                alternatingRow: false,
+                rownumbers: true,    // 显示序号  
+                rownumbersColWidth: 40,// 显示序号宽度  
+                onBeforeShowData: function ()
+                {
+                    beforeTime = new Date().getTime();
+                },
+                onAfterShowdata: function ()
+                {
+                    var diffValue = new Date().getTime() - beforeTime;
+                    diffValue = diffValue / 1000;
+
+                    $("#message").html("渲染时间:" + diffValue + "秒");
+                }
+            });
+        });
+
+
+
+
+        function req()
+        {
+            $("#clientName").attr("readonly", "readonly");
+            var snum = $("#snum").val();
+            var data = [];
+            while (snum > 0) {
+                data.push({ id: snum, code: newGuid(), name: 'abcdefghijklmn', desc0: 'abcdefghijklmn', desc1: 'abcdefghijklmn', desc2: 'abcdefghijklmn', desc3: 'abcdefghijklmn', desc4: 'abcdefghijklmn', desc5: 'abcdefghijklmn', desc6: 'abcdefghijklmn' });
+                snum--;
+            }
+
+            var clientReqDate = new Date();
+
+            $.ajax({
+                url: "SimpleHtmlPageHandler.ashx",
+                type: "post",
+                data: {
+                    num: $("#rnum").val(),
+                    sqls: $("#sqls").val(),
+                    sqlr: $("#sqlr").val(),
+                    readc: $("#readc").get(0).checked,
+                    readb: $("#readb").get(0).checked,
+                    writec: $("#writec").get(0).checked,
+                    writeb: $("#writeb").get(0).checked,
+                    content: JSON.stringify(data)
+                },
+                dataType: "json",
+                success: function (rst) {
+                    //rst = JSON.parse(rst);
+                    var row = {
+                        ClientBegin: clientReqDate, ClientEnd: new Date(), ClientDuration: new Date().getTime() - clientReqDate.getTime(),
+                        AppBegin: rst.AppBegin, AppEnd: rst.AppEnd, AppDuration: rst.AppDuration,
+                        DbBegin: rst.DbBegin, DbEnd: rst.DbEnd, DbDuration: rst.DbDuration
+                    };
+                    var g = $("#maingrid").ligerGrid();
+                    g.addRow(row, prevRow, true);
+                    prevRow = row;
+
+                    while (g.rows.length > $("#maxRows").val()) {
+                        g.remove(g.getRow(g.rows.length - 1));
+                    }
+
+                    row.ClientName = $("#clientName").val();
+                    row.ClientSends = $("#snum").val();
+                    row.AppResponds = $("#rnum").val();
+                    row.AppSends = $("#sqls").val();
+                    row.DbResponds = $("#sqlr").val();
+                    row.ReadClob = $("#readc").get(0).checked ? 1:0;
+                    row.ReadBlob = $("#readb").get(0).checked ? 1:0;
+                    row.WriteClob = $("#writec").get(0).checked ? 1:0;
+                    row.WriteBlob = $("#writeb").get(0).checked ? 1:0;
+                    $.ajax({
+                        url: "SavePerfHandler.ashx",
+                        type: "post",
+                        data: { content: JSON.stringify(row) },
+                        dataType: "json"
+                    });
+
+                    if (new Date() < $("#dtEnd").ligerDateEditor().getValue()) {
+                        setTimeout(req, $("#timer").val() * 1000);
+                    }
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                    alert(XMLHttpRequest.status);
+                    alert(XMLHttpRequest.readyState);
+                    alert(textStatus);
+                    alert(XMLHttpRequest.responseText);
+                }
+            });
+
+        }
+
+        var prevRow = null;
+
+        function newGuid() {
+            var guid = "";
+            for (var i = 1; i <= 32; i++) {
+                var n = Math.floor(Math.random() * 16.0).toString(16);
+                guid += n;
+                if ((i == 8) || (i == 12) || (i == 16) || (i == 20))
+                    guid += "-";
+            }
+            return guid;
+        }
+    </script>
+</head>
+<body style="padding:4px">
+    <table border="0" cellpadding="20" cellspacing="0">
+        <tr>
+            <td>发送App:</td>
+            <td><input type="text" id="snum" value="20" /></td>
+            <td>App返回:</td>
+            <td><input type="text" id="rnum" value="100" /></td>
+            <td>ClientName:<input type="text" id="clientName" value="zhangsan" /></td>
+        </tr>
+        <tr>
+            <td>&nbsp;&nbsp;发送DB:</td>
+            <td><input type="text" id="sqls" value="3" /></td>
+            <td>&nbsp;&nbsp;DB返回:</td>
+            <td><input type="text" id="sqlr" value="50" /></td>
+            <td>
+                &nbsp;&nbsp;读Clob
+                <input type="checkbox" id="readc" value="0" />
+                &nbsp;&nbsp;读Blob
+                <input type="checkbox" id="readb" value="0" />
+                &nbsp;&nbsp;写Clob
+                <input type="checkbox" id="writec" value="0" />
+                &nbsp;&nbsp;写Blob
+                <input type="checkbox" id="writeb" value="0" />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                时间间隔:
+            </td>
+            <td><input type="text" id="timer" value="3" /></td>
+            <td>
+                截止时间:
+            </td>
+            <td>
+                <input type="text" id="dtEnd" />
+            </td>
+            <td>
+                &nbsp;&nbsp;最大行数:<input type="text" id="maxRows" value="15" />
+                <input type="button" id="req" value="请求" onclick="req()" />
+            </td>
+        </tr>
+    </table>
+    <div>
+        <div id="message">渲染时间:0秒</div>
+        <div class="l-clear"></div>
+    </div>
+
+    <div id="maingrid"></div>
+</body>
+</html>

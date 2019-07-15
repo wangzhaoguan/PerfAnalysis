@@ -1,0 +1,17 @@
+﻿
+CREATE TABLE TEMP_TestTKK0719(
+	code		varchar(50) NOT NULL,
+	name		varchar(100) NULL,
+	age			int   NULL,
+	birthday	datetime   NULL,
+	salary		decimal(10, 2) NULL,
+	summary		nvarchar(1000) NULL,
+	remark		varchar(max) NULL,
+	extends		varbinary(max) NULL,
+	CONSTRAINT PK__TEMP_TestTKK0719   PRIMARY KEY  (code)
+);
+
+
+create index idx_TEMP_TestTKK0719_Name		on TEMP_TestTKK0719(name);
+create index idx_TEMP_TestTKK0719_age		on TEMP_TestTKK0719(age);
+create index idx_TEMP_TestTKK0719_birthday	on TEMP_TestTKK0719(birthday);
